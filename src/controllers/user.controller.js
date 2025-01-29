@@ -17,20 +17,30 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Please provide all the details");
     }
 
-    const existedUser=User.findOne({
+    const existedUser=await User.findOne({
         $or: [{email},{username}]
     })
     if(existedUser){
         throw new ApiError(409, "User with this email or username already exists");
     }
-    const avatarLocalaPath=req.files?.avatar[0]?.path;
-    const coverImageLocalPath=req.files?.coverImage[0]?.path;
+    const avatarLocalPath=req.files?.avatar[0]?.path;
+    //const coverImageLocalPath=req.files?.coverImage[0]?.path;
 
-    if(!avatarLocalaPath){
+    let coverImageLocalPath;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0){
+        coverImageLocalPath=req.files.coverImage[0].path;
+    }
+    else{
+        coverImageLocalPath="";
+    }
+
+    if(!avatarLocalPath){
         throw new ApiError(400, "Please provide avatar image");
     }
-    const avatar=await uploadOnCloudinary(avatarLocalaPath);
+
+    const avatar=await uploadOnCloudinary(avatarLocalPath);
     const coverImage=await uploadOnCloudinary(coverImageLocalPath);
+    console.log(avatar);
     
     const user=await User.create({
         username:username.toLowerCase(),
@@ -40,13 +50,13 @@ const registerUser = asyncHandler(async (req, res) => {
         avatar:avatar.url,
         coverImage:coverImage?coverImage.url:""
     })
-    const createdUser=await user.findById(user._id).select("-password -refreshToken");
+    const createdUser=await User.findById(user._id).select("-password -refreshToken");
     if(!createdUser){
         throw new ApiError(500, "User not created");
     }
 
     return res.status(201).json(
-        new ApiResonse(201,createdUser,"User created successfully")
+        new ApiResponse(201,createdUser,"User created successfully")
     )
 
 
